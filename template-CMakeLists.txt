@@ -1,0 +1,45 @@
+cmake_minimum_required(VERSION 3.10)
+
+project(project_name
+        VERSION 1.X.X
+        DESCRIPTION "Xxxxxxxxxxxxxxx"
+        LANGUAGES CXX)
+message("=====================================================================")
+message("                        Build ${PROJECT_NAME}")
+message("=====================================================================")
+
+set(MODULE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")
+set(REPO_ROOT "${MODULE_ROOT}/../../..")
+
+include(${REPO_ROOT}/cmake/cvlf_cmake.cmake)
+
+# Include dependency
+find_required_library(library1)
+find_required_library(library2)
+find_required_library(library3)
+
+# Glob all the source files
+file(GLOB_RECURSE SRCS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
+cuda_add_library(${PROJECT_NAME} STATIC
+    ${SRCS}
+)
+
+target_include_directories(${PROJECT_NAME}
+    PUBLIC
+        $<BUILD_INTERFACE:XXXXXXX/>
+    PRIVATE
+        $<BUILD_INTERFACE:XXXXXXX/>
+)
+
+target_link_libraries(${PROJECT_NAME} 
+    PRIVATE library1 library2 library3
+)
+
+# Common set
+cvlf_common_set()
+
+target_compile_options(${PROJECT_NAME} PUBLIC -fPIC)
+target_compile_options(${PROJECT_NAME} PRIVATE -DNDEBUG -O3 -Wall -Werror)
+
+# Installation instructions
+cvlf_lib_install()

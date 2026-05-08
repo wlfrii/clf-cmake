@@ -1,0 +1,19 @@
+# This is a template cmake file for library.
+# When using this template, replace the 'tempalte' to your library name.
+
+get_filename_component(template_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
+
+include(CMakeFindDependencyMacro)
+find_dependency(template_dependent_library1 REQUIRED)
+find_dependency(template_dependent_library2 REQUIRED)
+find_dependency(template_dependent_library3 REQUIRED)
+
+if(NOT TARGET template)
+    include("${template_CMAKE_DIR}/template-targets.cmake")
+endif()
+
+set(template_LIBRARIES template)
+set(template_VERSION @PROJECT_VERSION@)
+set(template_FOUND TRUE)
+
+message(STATUS "Found template: template_LIBRARIES: ${template_LIBRARIES} (version ${template_VERSION})")
