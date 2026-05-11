@@ -4,12 +4,10 @@
 
 Common CMake function definitions for the personal CLF projects.
 
----
-
 ## Introduction
 
 `clf_cmake.cmake` defines common functions.
 
-`template-CMakeLists.txt` presents a template CMakeLists file that configured with common functions. 
+`template-CMakeLists.txt` presents a template `CMakeLists` file that configured with common functions. 
 
-`template-config.cmake.in` presents a template file for a CMake project to generate package configuration file so that `finc_package()` can find. 
+`template-config.cmake.in` presents a template file for the CMake project to generate package configuration file so that `finc_package()` can find. 
