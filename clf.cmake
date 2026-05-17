@@ -4,7 +4,7 @@
 function(find_required_library _lib_name)
     # 1: parse optional args (the args after first arg)
     set(_components ${ARGN})
-    
+
     # 2: do find
     if(_components)
         find_package(${_lib_name} REQUIRED COMPONENTS ${_components})
@@ -28,7 +28,7 @@ function(find_required_library _lib_name)
 endfunction()
 
 # Function for cmake CXX common settings
-function(cvlf_common_set)
+function(clf_common_set)
     target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_17)
     target_compile_options(${PROJECT_NAME} PRIVATE -std=c++17)
     if(NOT CMAKE_BUILD_TYPE)
@@ -38,7 +38,7 @@ function(cvlf_common_set)
 endfunction()
 
 # Function for CUDA common settings
-function(cvlf_cuda_common_set)
+function(clf_cuda_common_set)
     set_target_properties(${PROJECT_NAME} PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
     target_compile_options(${PROJECT_NAME} PRIVATE
         $<$<COMPILE_LANGUAGE:CUDA>:
@@ -52,7 +52,7 @@ function(cvlf_cuda_common_set)
             --disable-warnings
             -O2
             -G
-            -g            
+            -g
         >
     )
     get_target_property(IS_SEPARABLE ${PROJECT_NAME} CUDA_SEPARABLE_COMPILATION)
@@ -66,27 +66,30 @@ function(cvlf_cuda_common_set)
 endfunction()
 
 # Function for install
-function(cvlf_lib_install)
+function(clf_lib_install)
     include(GNUInstallDirs)
     set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME})
 
-    message(STATUS "${PROJECT_NAME} install directory: ${INSTALL_CONFIGDIR}")
+    message(STATUS "${PROJECT_NAME} install directory: ${CMAKE_INSTALL_PREFIX}")
 
     install(TARGETS ${PROJECT_NAME}
         EXPORT ${PROJECT_NAME}-targets
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     )
 
-    # This is required so that the exported target has the name ${PROJECT_NAME} 
+    # Install header file
+    install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+    # This is required so that the exported target has the name ${PROJECT_NAME}
     set_target_properties(${PROJECT_NAME} PROPERTIES EXPORT_NAME ${PROJECT_NAME})
 
     # Export the targets to a script
     install(EXPORT ${PROJECT_NAME}-targets
-        FILE
-            ${PROJECT_NAME}-targets.cmake
-        DESTINATION
-            ${INSTALL_CONFIGDIR}
+        FILE ${PROJECT_NAME}-targets.cmake
+        DESTINATION ${INSTALL_CONFIGDIR}
     )
 
     # Create a -config-version.cmake file
