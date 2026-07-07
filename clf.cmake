@@ -4,7 +4,7 @@
 function(find_required_library _lib_name)
     # 1: parse optional args (the args after first arg)
     set(_components ${ARGN})
-
+    
     # 2: do find
     if(_components)
         find_package(${_lib_name} REQUIRED COMPONENTS ${_components})
@@ -12,7 +12,7 @@ function(find_required_library _lib_name)
         find_package(${_lib_name} REQUIRED)
     endif()
 
-    # 3: check whether FOUND (such as X11 → X11_FOUND，glfw3 → glfw3_FOUND)
+    # 3: chech whether FOUND (such as X11 → X11_FOUND，glfw3 → glfw3_FOUND)
     set(_found_var "${_lib_name}_FOUND")
     if(${_found_var})
         # if(_components)
@@ -39,30 +39,47 @@ endfunction()
 
 # Function for CUDA common settings
 function(clf_cuda_common_set)
-    set_target_properties(${PROJECT_NAME} PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
-    target_compile_options(${PROJECT_NAME} PRIVATE
+    if(ARGC GREATER 0)
+        set(TARGET_NAME ${ARGV0})
+    else()
+        set(TARGET_NAME ${PROJECT_NAME})
+    endif()
+    set_target_properties(${TARGET_NAME} PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+    target_compile_options(${TARGET_NAME} PRIVATE
         $<$<COMPILE_LANGUAGE:CUDA>:
-            -gencode arch=compute_61,code=sm_61
-            -gencode arch=compute_75,code=sm_75
             -gencode arch=compute_80,code=sm_80
             -gencode arch=compute_86,code=sm_86
+            -gencode arch=compute_89,code=sm_89
+            -gencode arch=compute_89,code=compute_89
             -std=c++17
             -rdc=true
             -diag-suppress=611
             --disable-warnings
             -O2
             -G
-            -g
+            -g            
         >
     )
-    get_target_property(IS_SEPARABLE ${PROJECT_NAME} CUDA_SEPARABLE_COMPILATION)
+    if(CUDAToolkit_VERSION_MAJOR LESS 13)
+        target_compile_options(A PRIVATE
+            $<$<COMPILE_LANGUAGE:CUDA>:
+                -gencode arch=compute_61,code=sm_61
+                -gencode arch=compute_75,code=sm_75
+            >
+        )
+    endif()
+    get_target_property(IS_SEPARABLE ${TARGET_NAME} CUDA_SEPARABLE_COMPILATION)
     message(STATUS "CUDA_SEPARABLE_COMPILATION: ${IS_SEPARABLE}")
     message(STATUS "CUDA_INCLUDE_DIRS:          ${CUDA_INCLUDE_DIRS}")
+    message(STATUS "CUDAToolkit_VERSION_MAJOR:  ${CUDAToolkit_VERSION_MAJOR}")
     message(STATUS "CUDAToolkit_INCLUDE_DIRS:   ${CUDAToolkit_INCLUDE_DIRS}")
     message(STATUS "CUDA_TOOLKIT_ROOT_DIR:      ${CUDA_TOOLKIT_ROOT_DIR}")
     message(STATUS "CUDAToolkit_ROOT:           ${CUDAToolkit_ROOT}")
-    get_target_property(COMPILE_OPTIONS ${PROJECT_NAME} COMPILE_OPTIONS)
+    get_target_property(COMPILE_OPTIONS ${TARGET_NAME} COMPILE_OPTIONS)
     message(STATUS "COMPILE_OPTIONS: ${COMPILE_OPTIONS}")
+
+    # Define the CUDA micro for current library only.
+    target_compile_definitions(${TARGET_NAME} PRIVATE VISION_CUDA_ENABLED)
 endfunction()
 
 # Function for install
@@ -70,26 +87,23 @@ function(clf_lib_install)
     include(GNUInstallDirs)
     set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME})
 
-    message(STATUS "${PROJECT_NAME} install directory: ${CMAKE_INSTALL_PREFIX}")
+    message(STATUS "${PROJECT_NAME} install directory: ${INSTALL_CONFIGDIR}")
 
     install(TARGETS ${PROJECT_NAME}
         EXPORT ${PROJECT_NAME}-targets
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     )
 
-    # Install header file
-    install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-
-    # This is required so that the exported target has the name ${PROJECT_NAME}
+    # This is required so that the exported target has the name ${PROJECT_NAME} 
     set_target_properties(${PROJECT_NAME} PROPERTIES EXPORT_NAME ${PROJECT_NAME})
 
     # Export the targets to a script
     install(EXPORT ${PROJECT_NAME}-targets
-        FILE ${PROJECT_NAME}-targets.cmake
-        DESTINATION ${INSTALL_CONFIGDIR}
+        FILE
+            ${PROJECT_NAME}-targets.cmake
+        DESTINATION
+            ${INSTALL_CONFIGDIR}
     )
 
     # Create a -config-version.cmake file
