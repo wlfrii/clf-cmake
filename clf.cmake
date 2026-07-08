@@ -12,7 +12,7 @@ function(find_required_library _lib_name)
         find_package(${_lib_name} REQUIRED)
     endif()
 
-    # 3: chech whether FOUND (such as X11 → X11_FOUND，glfw3 → glfw3_FOUND)
+    # 3: check whether FOUND (such as X11 → X11_FOUND，glfw3 → glfw3_FOUND)
     set(_found_var "${_lib_name}_FOUND")
     if(${_found_var})
         # if(_components)
@@ -87,13 +87,18 @@ function(clf_lib_install)
     include(GNUInstallDirs)
     set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME})
 
-    message(STATUS "${PROJECT_NAME} install directory: ${INSTALL_CONFIGDIR}")
+    message(STATUS "${PROJECT_NAME} install directory: ${CMAKE_INSTALL_PREFIX}")
 
     install(TARGETS ${PROJECT_NAME}
         EXPORT ${PROJECT_NAME}-targets
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     )
+
+    # Install header file
+    install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
     # This is required so that the exported target has the name ${PROJECT_NAME} 
     set_target_properties(${PROJECT_NAME} PROPERTIES EXPORT_NAME ${PROJECT_NAME})
