@@ -29,12 +29,17 @@ endfunction()
 
 # Function for cmake CXX common settings
 function(clf_common_set)
-    target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_17)
-    target_compile_options(${PROJECT_NAME} PRIVATE -std=c++17)
-    if(NOT CMAKE_BUILD_TYPE)
-        set(CMAKE_BUILD_TYPE "Release" CACHE INTERNAL "Build type for ${PROJECT_NAME}")
+    if(ARGC GREATER 0)
+        set(TARGET_NAME ${ARGV0})
+    else()
+        set(TARGET_NAME ${PROJECT_NAME})
     endif()
-    target_compile_options(${PROJECT_NAME} PRIVATE $<$<CXX_COMPILER_ID:GNU>:-Wall>)
+    target_compile_features(${TARGET_NAME} PRIVATE cxx_std_17)
+    target_compile_options(${TARGET_NAME} PRIVATE -std=c++17)
+    if(NOT CMAKE_BUILD_TYPE)
+        set(CMAKE_BUILD_TYPE "Release" CACHE INTERNAL "Build type for ${TARGET_NAME}")
+    endif()
+    target_compile_options(${TARGET_NAME} PRIVATE $<$<CXX_COMPILER_ID:GNU>:-Wall>)
 endfunction()
 
 # Function for CUDA common settings
@@ -55,7 +60,6 @@ function(clf_cuda_common_set)
             -rdc=true
             -diag-suppress=611
             --disable-warnings
-            -O2
             -G
             -g            
         >
