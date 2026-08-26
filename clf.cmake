@@ -1,153 +1,140 @@
-# cmake/vision_common_functions.cmake
+# Common CMake helpers for CLF projects.
 
-# Function for find required package
-function(find_required_library _lib_name)
-    # 1: parse optional args (the args after first arg)
-    set(_components ${ARGN})
-    
-    # 2: do find
-    if(_components)
-        find_package(${_lib_name} REQUIRED COMPONENTS ${_components})
+# Find a required package. Additional arguments are treated as components.
+# A macro is intentional: legacy Find modules often expose variables that need
+# to remain visible in the caller's scope.
+macro(find_required_library _lib_name)
+    if(ARGN)
+        find_package(${_lib_name} REQUIRED COMPONENTS ${ARGN})
     else()
         find_package(${_lib_name} REQUIRED)
     endif()
+endmacro()
 
-    # 3: check whether FOUND (such as X11 → X11_FOUND，glfw3 → glfw3_FOUND)
-    set(_found_var "${_lib_name}_FOUND")
-    if(${_found_var})
-        # if(_components)
-        #     message(STATUS "${PROJECT_NAME}: ${_lib_name} is found (components: ${_components})")
-        # else()
-        #     message(STATUS "${PROJECT_NAME}: ${_lib_name} is found")
-        # endif()
-        # set(_lib_var "${_lib_name}_LIBRARIES")
-        # message(STATUS "${PROJECT_NAME}: ${_lib_var}: ${${_lib_var}}")
-    else()
-        message(FATAL_ERROR "${PROJECT_NAME}: Cannot find ${_lib_name}")
-    endif()
-endfunction()
-
-# Function for cmake CXX common settings
+# Apply common C++ settings to a target (or PROJECT_NAME when omitted).
 function(clf_common_set)
     if(ARGC GREATER 0)
         set(TARGET_NAME ${ARGV0})
     else()
         set(TARGET_NAME ${PROJECT_NAME})
     endif()
-    target_compile_features(${TARGET_NAME} PRIVATE cxx_std_17)
-    target_compile_options(${TARGET_NAME} PRIVATE -std=c++17)
-    if(NOT CMAKE_BUILD_TYPE)
-        set(CMAKE_BUILD_TYPE "Release" CACHE INTERNAL "Build type for ${TARGET_NAME}")
+
+    if(NOT TARGET ${TARGET_NAME})
+        message(FATAL_ERROR "clf_common_set: target '${TARGET_NAME}' does not exist")
     endif()
-    target_compile_options(${TARGET_NAME} PRIVATE $<$<CXX_COMPILER_ID:GNU>:-Wall>)
+
+    target_compile_features(${TARGET_NAME} PRIVATE cxx_std_17)
+    set_target_properties(${TARGET_NAME} PROPERTIES CXX_EXTENSIONS OFF)
+    target_compile_options(${TARGET_NAME} PRIVATE
+        $<$<CXX_COMPILER_ID:GNU>:-Wall>
+        $<$<CXX_COMPILER_ID:Clang>:-Wall>
+        $<$<CXX_COMPILER_ID:AppleClang>:-Wall>
+        $<$<CXX_COMPILER_ID:MSVC>:/W4>
+    )
 endfunction()
 
-# Function for CUDA common settings
+# Apply common CUDA settings to a target (or PROJECT_NAME when omitted).
 function(clf_cuda_common_set)
     if(ARGC GREATER 0)
         set(TARGET_NAME ${ARGV0})
     else()
         set(TARGET_NAME ${PROJECT_NAME})
     endif()
-    set_target_properties(${TARGET_NAME} PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
-    target_compile_options(${TARGET_NAME} PRIVATE
-        $<$<COMPILE_LANGUAGE:CUDA>:
-            -gencode arch=compute_80,code=sm_80
-            -gencode arch=compute_86,code=sm_86
-            -gencode arch=compute_89,code=sm_89
-            -gencode arch=compute_89,code=compute_89
-            -std=c++17
-            -rdc=true
-            -diag-suppress=611
-            --disable-warnings
-            -G
-            -g            
-        >
-    )
-    if(CUDAToolkit_VERSION_MAJOR LESS 13)
-        target_compile_options(A PRIVATE
-            $<$<COMPILE_LANGUAGE:CUDA>:
-                -gencode arch=compute_61,code=sm_61
-                -gencode arch=compute_75,code=sm_75
-            >
+
+    if(NOT TARGET ${TARGET_NAME})
+        message(FATAL_ERROR "clf_cuda_common_set: target '${TARGET_NAME}' does not exist")
+    endif()
+    if(NOT CMAKE_CUDA_COMPILER_LOADED)
+        message(FATAL_ERROR
+            "clf_cuda_common_set: CUDA is not enabled; add CUDA to project(LANGUAGES ...)"
         )
     endif()
-    get_target_property(IS_SEPARABLE ${TARGET_NAME} CUDA_SEPARABLE_COMPILATION)
-    message(STATUS "CUDA_SEPARABLE_COMPILATION: ${IS_SEPARABLE}")
-    message(STATUS "CUDA_INCLUDE_DIRS:          ${CUDA_INCLUDE_DIRS}")
-    message(STATUS "CUDAToolkit_VERSION_MAJOR:  ${CUDAToolkit_VERSION_MAJOR}")
-    message(STATUS "CUDAToolkit_INCLUDE_DIRS:   ${CUDAToolkit_INCLUDE_DIRS}")
-    message(STATUS "CUDA_TOOLKIT_ROOT_DIR:      ${CUDA_TOOLKIT_ROOT_DIR}")
-    message(STATUS "CUDAToolkit_ROOT:           ${CUDAToolkit_ROOT}")
-    get_target_property(COMPILE_OPTIONS ${TARGET_NAME} COMPILE_OPTIONS)
-    message(STATUS "COMPILE_OPTIONS: ${COMPILE_OPTIONS}")
 
-    # Define the CUDA micro for current library only.
-    target_compile_definitions(${TARGET_NAME} PRIVATE VISION_CUDA_ENABLED)
+    set_target_properties(${TARGET_NAME} PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+    target_compile_features(${TARGET_NAME} PRIVATE cuda_std_17)
+    target_compile_options(${TARGET_NAME} PRIVATE
+        $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CUDA_COMPILER_ID:NVIDIA>,$<CONFIG:Debug>>:-G>
+        $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CUDA_COMPILER_ID:NVIDIA>,$<CONFIG:Debug>>:-g>
+    )
+
+    # Select architectures through CMAKE_CUDA_ARCHITECTURES or the target's
+    # CUDA_ARCHITECTURES property instead of embedding toolkit-specific flags.
+    target_compile_definitions(${TARGET_NAME} PRIVATE CLF_CUDA_ENABLED)
 endfunction()
 
-# Function for install
+# Install and export a library target.
+# Usage: clf_lib_install([TARGET target] [CONFIG_TEMPLATE path])
 function(clf_lib_install)
+    set(one_value_args TARGET CONFIG_TEMPLATE)
+    cmake_parse_arguments(CLF_INSTALL "" "${one_value_args}" "" ${ARGN})
+
+    if(CLF_INSTALL_UNPARSED_ARGUMENTS)
+        message(FATAL_ERROR
+            "clf_lib_install: unknown arguments: ${CLF_INSTALL_UNPARSED_ARGUMENTS}"
+        )
+    endif()
+    if(CLF_INSTALL_TARGET)
+        set(TARGET_NAME ${CLF_INSTALL_TARGET})
+    else()
+        set(TARGET_NAME ${PROJECT_NAME})
+    endif()
+    if(NOT TARGET ${TARGET_NAME})
+        message(FATAL_ERROR "clf_lib_install: target '${TARGET_NAME}' does not exist")
+    endif()
+
     include(GNUInstallDirs)
+    include(CMakePackageConfigHelpers)
     set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME})
+
+    if(CLF_INSTALL_CONFIG_TEMPLATE)
+        set(CONFIG_TEMPLATE ${CLF_INSTALL_CONFIG_TEMPLATE})
+    else()
+        set(CONFIG_TEMPLATE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}-config.cmake.in)
+    endif()
+    if(NOT EXISTS "${CONFIG_TEMPLATE}")
+        message(FATAL_ERROR
+            "clf_lib_install: package config template not found: ${CONFIG_TEMPLATE}"
+        )
+    endif()
 
     message(STATUS "${PROJECT_NAME} install directory: ${CMAKE_INSTALL_PREFIX}")
 
-    install(TARGETS ${PROJECT_NAME}
+    install(TARGETS ${TARGET_NAME}
         EXPORT ${PROJECT_NAME}-targets
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
         INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     )
-
-    # Install header file
     install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
-    # This is required so that the exported target has the name ${PROJECT_NAME} 
-    set_target_properties(${PROJECT_NAME} PROPERTIES EXPORT_NAME ${PROJECT_NAME})
-
-    # Export the targets to a script
+    # Keep the installed target name stable even when the local target differs
+    # from the package name: <project>::<project>.
+    set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME ${PROJECT_NAME})
     install(EXPORT ${PROJECT_NAME}-targets
-        FILE
-            ${PROJECT_NAME}-targets.cmake
-        DESTINATION
-            ${INSTALL_CONFIGDIR}
+        FILE ${PROJECT_NAME}-targets.cmake
+        NAMESPACE ${PROJECT_NAME}::
+        DESTINATION ${INSTALL_CONFIGDIR}
     )
 
-    # Create a -config-version.cmake file
-    include(CMakePackageConfigHelpers)
     write_basic_package_version_file(
         ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config-version.cmake
         VERSION ${PROJECT_VERSION}
         COMPATIBILITY AnyNewerVersion
     )
-
     configure_package_config_file(
-        ${CMAKE_CURRENT_LIST_DIR}/cmake/${PROJECT_NAME}-config.cmake.in
+        ${CONFIG_TEMPLATE}
         ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake
         INSTALL_DESTINATION ${INSTALL_CONFIGDIR}
     )
-
-    # Install the config, configversion and custom find modules
     install(FILES
         ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake
         ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config-version.cmake
         DESTINATION ${INSTALL_CONFIGDIR}
     )
 
-    ##############################################
-    ## Exporting from the build tree
-    # configure_file(${CMAKE_CURRENT_LIST_DIR}/cmake/FindRapidJSON.cmake
-    #     ${CMAKE_CURRENT_BINARY_DIR}/FindRapidJSON.cmake
-    #     COPYONLY)
-
-    export(EXPORT ${PROJECT_NAME}-targets FILE ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-targets.cmake)
-
-    #Register package in user's package registry
-    export(PACKAGE ${PROJECT_NAME})
-
-    #if(PROJECT_NAME STREQUAL CMAKE_PROJECT_NAME)
-    #	add_subdirectory(test)
-    #endif(PROJECT_NAME STREQUAL CMAKE_PROJECT_NAME)
+    export(EXPORT ${PROJECT_NAME}-targets
+        FILE ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-targets.cmake
+        NAMESPACE ${PROJECT_NAME}::
+    )
 endfunction()

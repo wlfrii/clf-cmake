@@ -1,7 +1,8 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.18)
 
+# Note the project version and description should be updated.
 project(project_name
-        VERSION 1.X.X
+        VERSION 0.1.0
         DESCRIPTION "Xxxxxxxxxxxxxxx"
         LANGUAGES CXX)
 message("=====================================================================")
@@ -11,7 +12,8 @@ message("=====================================================================")
 set(MODULE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")
 set(REPO_ROOT "${MODULE_ROOT}/..")
 
-include(${REPO_ROOT}/clf-cmake/clf.cmake)
+include("${REPO_ROOT}/clf-cmake/clf.cmake")
+include(GNUInstallDirs)
 
 # Include dependency
 find_required_library(library1)
@@ -19,27 +21,25 @@ find_required_library(library2)
 find_required_library(library3)
 
 # Glob all the source files
-file(GLOB_RECURSE SRCS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
+file(GLOB_RECURSE SRCS CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 add_library(${PROJECT_NAME} STATIC
     ${SRCS}
 )
 
 target_include_directories(${PROJECT_NAME}
     PUBLIC
-        $<BUILD_INTERFACE:XXXXXXX/>
-    PRIVATE
-        $<BUILD_INTERFACE:XXXXXXX/>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
 target_link_libraries(${PROJECT_NAME}
-    PRIVATE library1 library2 library3
+    PRIVATE library1::library1 library2::library2 library3::library3
 )
 
 # Common set
 clf_common_set()
 
-target_compile_options(${PROJECT_NAME} PUBLIC -fPIC)
-target_compile_options(${PROJECT_NAME} PRIVATE -DNDEBUG -O3 -Wall -Werror)
+set_target_properties(${PROJECT_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # Installation instructions
-clf_lib_install()
+clf_lib_install(TARGET ${PROJECT_NAME})

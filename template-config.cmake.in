@@ -1,19 +1,15 @@
-# This is a template cmake file for library.
-# When using this template, replace the 'tempalte' to your library name.
+@PACKAGE_INIT@
 
-get_filename_component(template_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
-
+# Add one find_dependency() call for every public dependency of this package.
+# Private dependencies of a static library may also need to be listed here.
 include(CMakeFindDependencyMacro)
-find_dependency(template_dependent_library1 REQUIRED)
-find_dependency(template_dependent_library2 REQUIRED)
-find_dependency(template_dependent_library3 REQUIRED)
+# find_dependency(dependent_library REQUIRED)
 
-if(NOT TARGET template)
-    include("${template_CMAKE_DIR}/template-targets.cmake")
+if(NOT TARGET @PROJECT_NAME@::@PROJECT_NAME@)
+    include("${CMAKE_CURRENT_LIST_DIR}/@PROJECT_NAME@-targets.cmake")
 endif()
 
-set(template_LIBRARIES template)
-set(template_VERSION @PROJECT_VERSION@)
-set(template_FOUND TRUE)
+set(@PROJECT_NAME@_LIBRARIES @PROJECT_NAME@::@PROJECT_NAME@)
+set(@PROJECT_NAME@_VERSION "@PROJECT_VERSION@")
 
-message(STATUS "Found template: template_LIBRARIES: ${template_LIBRARIES} (version ${template_VERSION})")
+check_required_components("@PROJECT_NAME@")
