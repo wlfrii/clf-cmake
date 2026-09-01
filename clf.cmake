@@ -50,15 +50,23 @@ function(clf_cuda_common_set)
         )
     endif()
 
-    set_target_properties(${TARGET_NAME} PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+    set_target_properties(${TARGET_NAME} PROPERTIES
+        CUDA_SEPARABLE_COMPILATION ON
+        # Build native cubins for Ampere and Ada, then retain compute_89 PTX as
+        # a forward-compatible fallback for future GPU architectures.
+        CUDA_ARCHITECTURES "80-real;86-real;89"
+    )
     target_compile_features(${TARGET_NAME} PRIVATE cuda_std_17)
     target_compile_options(${TARGET_NAME} PRIVATE
         $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CUDA_COMPILER_ID:NVIDIA>,$<CONFIG:Debug>>:-G>
         $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CUDA_COMPILER_ID:NVIDIA>,$<CONFIG:Debug>>:-g>
     )
 
-    # Select architectures through CMAKE_CUDA_ARCHITECTURES or the target's
-    # CUDA_ARCHITECTURES property instead of embedding toolkit-specific flags.
+    # CUDA_ARCHITECTURES above generates the equivalent of:
+    #   -gencode arch=compute_80,code=sm_80
+    #   -gencode arch=compute_86,code=sm_86
+    #   -gencode arch=compute_89,code=sm_89
+    #   -gencode arch=compute_89,code=compute_89
     target_compile_definitions(${TARGET_NAME} PRIVATE CLF_CUDA_ENABLED)
 endfunction()
 
