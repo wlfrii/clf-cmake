@@ -1,0 +1,288 @@
+C/C++ and CUDA Coding Specification
+
+1. Type Naming
+
+Class, structure, union, enumeration, type-alias, and other type names shall use
+UpperCamelCase. Long names may use widely understood abbreviations to remain concise.
+Acronyms that are conventionally uppercase may remain uppercase.
+
+Examples:
+
+    class CamParameters;
+    struct CameraExtrinsic;
+    enum class ISPMode;
+    using PixelIndex = unsigned int;
+
+Use abbreviations only when their meanings are clear in the project context. For
+example, "Cam" may represent "Camera", and "ISP" may represent "Image Signal
+Processing".
+
+2. Function Naming
+
+Functions and member functions shall use lowerCamelCase: the first word begins with a
+lowercase letter, and each subsequent word begins with an uppercase letter.
+
+Examples:
+
+    void setGamma(float value);
+    void createRectificationMap();
+    float calculateMeanValue() const;
+
+3. Variable Naming
+
+Local variables, function parameters, and ordinary public variables shall use
+lowercase snake_case. Words shall be separated by underscores.
+
+Examples:
+
+    unsigned int pixel_count = 0U;
+    float gamma_value = 1.0f;
+    cv::Mat rectified_image;
+
+4. Private and Protected Member Variables
+
+Private and protected member variables shall use lowercase snake_case with one leading
+underscore.
+
+Examples:
+
+    class Gamma {
+    private:
+        float        _gamma_value;
+        unsigned int _pixel_count;
+    };
+
+5. Public Member Variables
+
+Public member variables shall follow the ordinary variable rule: lowercase snake_case
+without a leading underscore.
+
+Example:
+
+    struct ImageSize {
+        unsigned int width;
+        unsigned int height;
+    };
+
+6. Boolean Function Naming
+
+A bool-returning query or predicate function shall begin with a question word or
+predicate prefix that makes the true condition clear. Common prefixes include "is",
+"has", "can", "should", and "needs".
+
+Examples:
+
+    bool isValid() const;
+    bool isEnabled() const;
+    bool hasAlphaChannel() const;
+    bool canProcess() const;
+
+A function that performs an action and returns bool only to report whether the action
+succeeded shall retain an action-oriented verb. Do not rename an action as a predicate
+merely because its return type is bool.
+
+Examples:
+
+    bool setConfig(const Config& config);
+    bool updateState();
+    bool process(const Image& src, Image& dst);
+
+Avoid ambiguous predicate names such as valid(), enabled(), or checkState(). The function
+name and documentation shall make it clear whether bool represents a queried condition or
+the success or failure of an action.
+
+7. Brace Placement
+
+An opening brace shall appear on the same line as the statement or declaration that
+introduces its scope. A single space shall precede the opening brace.
+
+Examples:
+
+    if(a > b) {
+        processValue(a);
+    }
+
+    for(unsigned int i = 0U; i < count; ++i) {
+        processPixel(i);
+    }
+
+    void updateState() {
+        // Implementation.
+    }
+
+8. Operator Spacing
+
+A single space shall appear before and after binary arithmetic, comparison,
+assignment, logical, bitwise, and shift operators. Unary operators shall remain next
+to their operands.
+
+Examples:
+
+    result = operand_a + operand_b;
+    is_valid = value >= MIN_VALUE && value <= MAX_VALUE;
+    shifted_value = source_value >> 8U;
+    ++index;
+    pointer = nullptr;
+
+9. Enumeration Value Naming
+
+Enumeration values shall use uppercase snake_case. Every enumerator shall have a brief
+Doxygen trailing comment. The comments shall be aligned at least one space after the
+longest enumerator in the same enumeration, and their descriptions should be concise.
+
+Example:
+
+    enum class MeanFilterKernel {
+        OLD,          ///< Legacy implementation.
+        POINTER,      ///< Pointer-walking implementation.
+        SEGMENTED,    ///< Segmented implementation.
+        SHARED,       ///< Shared-memory implementation.
+        SHARED_FIXED  ///< Fixed-radius shared implementation.
+    };
+
+10. Header Documentation
+
+Functions declared in public headers shall use Doxygen comments. Each comment shall
+contain an @brief description and document every parameter with @param[in],
+@param[out], or @param[in,out]. Non-void return values shall be documented with
+@return when their meanings are not self-evident. Private and protected member
+function comments may be shorter, but shall remain sufficient to explain non-obvious
+behavior.
+
+The following blank-line rules shall be used for function documentation:
+
+- Leave one blank Doxygen line between @brief and the first @param.
+- Keep consecutive @param entries together without blank lines between them.
+- Leave one blank Doxygen line between the final @param and @return.
+- Leave one blank Doxygen line before and after @note, @detail, or @details when
+  another tag or description follows it.
+- Place @see or @sa at the end of the comment. Leave one blank Doxygen line before the
+  first @see or @sa entry.
+- Do not place descriptive text or another Doxygen tag after @see or @sa.
+
+Example:
+
+    /**
+     * @brief Process an image with the configured gamma exponent.
+     *
+     * @param[in] d_src Input image in device memory.
+     * @param[out] d_dst Output image in device memory.
+     *
+     * @return Detailed processing status.
+     *
+     * @note Source and destination buffers shall not overlap.
+     *
+     * @details Processing is submitted to the configured CUDA stream.
+     *
+     * @see setGamma()
+     */
+    IoStatus process(const float* d_src, float* d_dst);
+
+All classes, structures, unions, enumerations, type aliases, and other named types
+shall have a Doxygen comment containing at least an @brief description.
+
+Examples:
+
+    /**
+     * @brief Store image dimensions and pixel layout information.
+     */
+    struct ImageDesc {
+        unsigned int width;
+        unsigned int height;
+    };
+
+    /**
+     * @brief Select a mean-filter CUDA implementation.
+     */
+    enum class MeanFilterKernel {
+        OLD,          ///< Legacy implementation.
+        POINTER,      ///< Pointer-walking implementation.
+        SEGMENTED,    ///< Segmented implementation.
+        SHARED,       ///< Shared-memory implementation.
+        SHARED_FIXED  ///< Fixed-radius shared implementation.
+    };
+
+11. Implementation Hiding
+
+Implementation details that external users do not need shall not be exposed in public
+headers. Keep private types, helper functions, launch plans, and internal state in
+source files or internal headers whenever practical. Use techniques such as an Impl
+class (PImpl) when they reduce coupling or prevent implementation dependencies from
+becoming part of the public interface.
+
+12. Constant Naming
+
+Named constants, including constexpr variables and constant configuration parameters,
+shall use uppercase snake_case.
+
+Examples:
+
+    constexpr unsigned int BLOCK_THREADS = 256U;
+    constexpr float        DEFAULT_GAMMA = 1.0f;
+
+13. Global Variables
+
+Global variables shall be avoided whenever practical. Prefer local variables, class
+members, function parameters, or narrowly scoped constants. If shared mutable state is
+unavoidable, document its ownership, lifetime, and synchronization requirements.
+
+14. Maximum Line Width
+
+Each line should contain no more than 90 characters, including indentation, comments,
+and whitespace. Split long expressions, declarations, argument lists, and comments at
+logical boundaries.
+
+Example:
+
+    const unsigned int element_count =
+        static_cast<unsigned int>(image_width) * image_height * channels;
+
+15. Host and Device Memory Naming
+
+Variables that refer to GPU device memory shall use the "d_" prefix. When matching CPU
+and GPU memory variables both exist, the CPU variable shall use the "h_" prefix.
+
+Examples:
+
+    float*             d_input = nullptr;
+    std::vector<float> h_input;
+    uint8_t*           d_output = nullptr;
+    std::vector<uint8_t> h_output;
+
+The prefix describes the memory addressed by the variable, not the location where the
+pointer variable itself is stored.
+
+16. CUDA Kernel Naming
+
+CUDA __global__ kernel functions shall begin with a lowercase "d" to identify device
+execution. The corresponding CPU function shall use the same lowerCamelCase name
+without the leading "d".
+
+Example:
+
+    __global__ void dGammaCorrect(const float* d_src, float* d_dst);
+    void gammaCorrect(const float* h_src, float* h_dst);
+
+CUDA __device__ helper functions should follow the same convention when doing so makes
+the execution location clearer.
+
+17. Declaration and Comment Alignment
+
+Within a related group of declarations, variable names should be vertically aligned
+according to the longest type and qualifier sequence whenever this improves
+readability. Trailing comments in the same group should also begin in a common column.
+Do not force alignment when it would violate the 90-character line guideline or make
+future edits unnecessarily difficult.
+
+Example:
+
+    struct ImageBuffer {
+        uint8_t*     d_data;     ///< Device image data.
+        unsigned int width;      ///< Image width in pixels.
+        unsigned int height;     ///< Image height in pixels.
+        unsigned int channels;   ///< Number of interleaved channels.
+    };
+
+    const float* d_source      = nullptr;
+    float*       d_destination = nullptr;
+    float*       d_temporary   = nullptr;
